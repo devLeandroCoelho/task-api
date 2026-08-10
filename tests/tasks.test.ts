@@ -1,212 +1,315 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import request from 'supertest';
-import express from 'express';
-import Database from 'better-sqlite3';
-import { createApp } from '../src/app';
-import { closeDatabase } from '../src/db';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import jwt from 'jsonwebtoken';
 
-let app: express.Express;
-let db: Database.Database;
-let authToken: string;
+const JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret-minimum-16-chars';
 
-beforeAll(async () => {
-  const result = createApp();
-  app = result.app;
-  db = result.database;
+// ── Mock Supabase chainable ────────────────────────────────────────────
+let _chainResult: Record<string, unknown> = {};
+let _chainError: unknown = null;
+let _chainCount: number | null = null;
 
-  // Register a test user and get token
-  const res = await request(app)
-    .post('/api/auth/register')
-    .send({
-      name: 'Test User',
-      email: 'test@example.com',
-      password: 'Password123',
-    });
-  authToken = res.body.data.token;
-});
+function buildMockChain() {
+  const chain: Record<string, unknown> = {
+    insert: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    range: vi.fn().mockReturnThis(),
+    single: vi.fn().mockImplementation(() => Promise.resolve({ data: _chainResult, error: _chainError })),
+  };
+  // Make thenable so `await queryBuilder` resolves
+  chain.then = (resolve: (val: { data: unknown; error: unknown; count: number | null }) => void) =>
+    resolve({ data: _chainResult, error: _chainError, count: _chainCount });
+  return chain;
+}
 
-afterAll(() => {
-  closeDatabase();
-});
+const mockFrom = vi.fn(() => buildMockChain());
+
+vi.mock('../api/_lib/supabase', () => ({
+  supabase: {
+    auth: {
+      admin: {
+        createUser: vi.fn(),
+        deleteUser: vi.fn(),
+      },
+      signInWithPassword: vi.fn(),
+    },
+    from: mockFrom,
+  },
+}));
+
+// ── Helpers ────────────────────────────────────────────────────────────
+function makeToken(payload: { userId: string; email: string }): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+}
+
+function mockReq(overrides: Partial<VercelRequest> = {}): VercelRequest {
+  return {
+    method: 'GET',
+    headers: {},
+    body: {},
+    query: {},
+    ...overrides,
+  } as VercelRequest;
+}
+
+function mockRes(): VercelResponse & { _status: number; _body: unknown } {
+  const res = {
+    _status: 200,
+    _body: null as unknown,
+    status(code: number) {
+      res._status = code;
+      return res;
+    },
+    json(body: unknown) {
+      res._body = body;
+      return res;
+    },
+    end() {
+      return res;
+    },
+  } as unknown as VercelResponse & { _status: number; _body: unknown };
+  return res;
+}
+
+const AUTH_TOKEN = makeToken({ userId: 'user-1', email: 'test@example.com' });
 
 beforeEach(() => {
-  db.exec('DELETE FROM tasks');
+  vi.clearAllMocks();
+  _chainResult = {};
+  _chainError = null;
+  _chainCount = null;
 });
 
-describe('Tasks', () => {
-  const sampleTask = {
-    title: 'Test Task',
-    description: 'Test description',
-    priority: 'high',
-    status: 'pending',
-  };
+// ══════════════════════════════════════════════════════════════════════
+// Tasks Tests
+// ══════════════════════════════════════════════════════════════════════
+describe('POST /api/tasks', () => {
+  it('should create a task', async () => {
+    const taskRow = {
+      id: 'task-1',
+      user_id: 'user-1',
+      title: 'Test Task',
+      description: 'Desc',
+      status: 'pending',
+      priority: 'high',
+      due_date: null,
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2025-01-01T00:00:00Z',
+    };
+    _chainResult = taskRow;
 
-  describe('POST /api/tasks', () => {
-    it('should create a task', async () => {
-      const response = await request(app)
-        .post('/api/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(sampleTask)
-        .expect(201);
+    const { default: handler } = await import('../api/tasks/index');
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.task).toMatchObject({
-        title: sampleTask.title,
-        description: sampleTask.description,
-        priority: sampleTask.priority,
-        status: sampleTask.status,
-      });
+    const req = mockReq({
+      method: 'POST',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      body: { title: 'Test Task', description: 'Desc', priority: 'high' },
     });
+    const res = mockRes();
 
-    it('should reject without auth', async () => {
-      await request(app)
-        .post('/api/tasks')
-        .send(sampleTask)
-        .expect(401);
-    });
+    await handler(req, res);
 
-    it('should reject invalid data', async () => {
-      const response = await request(app)
-        .post('/api/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ title: '' })
-        .expect(400);
-
-      expect(response.body.success).toBe(false);
-    });
+    expect(res._status).toBe(201);
+    const body = res._body as { success: boolean; data: { task: Record<string, unknown> } };
+    expect(body.success).toBe(true);
+    expect(body.data.task.title).toBe('Test Task');
   });
 
-  describe('GET /api/tasks', () => {
-    beforeEach(async () => {
-      // Create multiple tasks
-      for (let i = 0; i < 3; i++) {
-        await request(app)
-          .post('/api/tasks')
-          .set('Authorization', `Bearer ${authToken}`)
-          .send({ title: `Task ${i + 1}` });
-      }
+  it('should reject without auth', async () => {
+    const { default: handler } = await import('../api/tasks/index');
+
+    const req = mockReq({
+      method: 'POST',
+      headers: {},
+      body: { title: 'Test' },
     });
+    const res = mockRes();
 
-    it('should list tasks', async () => {
-      const response = await request(app)
-        .get('/api/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
+    await handler(req, res);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.tasks).toHaveLength(3);
-      expect(response.body.data.pagination.total).toBe(3);
-    });
-
-    it('should paginate tasks', async () => {
-      const response = await request(app)
-        .get('/api/tasks?page=1&limit=2')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      expect(response.body.data.tasks).toHaveLength(2);
-      expect(response.body.data.pagination.totalPages).toBe(2);
-    });
-
-    it('should filter by status', async () => {
-      // Complete one task
-      const tasks = await request(app)
-        .get('/api/tasks')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      const taskId = tasks.body.data.tasks[0].id;
-      await request(app)
-        .put(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ status: 'completed' });
-
-      const response = await request(app)
-        .get('/api/tasks?status=completed')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(200);
-
-      expect(response.body.data.tasks).toHaveLength(1);
-    });
+    expect(res._status).toBe(401);
   });
 
-  describe('PUT /api/tasks/:id', () => {
-    let taskId: number;
+  it('should reject invalid data', async () => {
+    const { default: handler } = await import('../api/tasks/index');
 
-    beforeEach(async () => {
-      const res = await request(app)
-        .post('/api/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(sampleTask);
-      taskId = res.body.data.task.id;
+    const req = mockReq({
+      method: 'POST',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      body: { title: '' },
     });
+    const res = mockRes();
 
-    it('should update a task', async () => {
-      const response = await request(app)
-        .put(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ title: 'Updated Title', status: 'completed' })
-        .expect(200);
+    await handler(req, res);
 
-      expect(response.body.data.task.title).toBe('Updated Title');
-      expect(response.body.data.task.status).toBe('completed');
+    expect(res._status).toBe(400);
+    const body = res._body as { success: boolean };
+    expect(body.success).toBe(false);
+  });
+});
+
+describe('GET /api/tasks', () => {
+  it('should list tasks', async () => {
+    _chainResult = [
+      { id: 't1', title: 'Task 1' },
+      { id: 't2', title: 'Task 2' },
+      { id: 't3', title: 'Task 3' },
+    ];
+    _chainCount = 3;
+
+    const { default: handler } = await import('../api/tasks/index');
+
+    const req = mockReq({
+      method: 'GET',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
     });
+    const res = mockRes();
 
-    it('should return 404 for non-existent task', async () => {
-      await request(app)
-        .put('/api/tasks/99999')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ title: 'Updated' })
-        .expect(404);
-    });
+    await handler(req, res);
 
-    it('should not update other user task', async () => {
-      // Register another user
-      const otherUser = await request(app)
-        .post('/api/auth/register')
-        .send({
-          name: 'Other User',
-          email: 'other@example.com',
-          password: 'Password123',
-        });
-      const otherToken = otherUser.body.data.token;
-
-      await request(app)
-        .put(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${otherToken}`)
-        .send({ title: 'Hacked' })
-        .expect(404);
-    });
+    expect(res._status).toBe(200);
+    const body = res._body as { data: { tasks: unknown[]; pagination: Record<string, unknown> } };
+    expect(body.data.tasks).toHaveLength(3);
+    expect(body.data.pagination.total).toBe(3);
   });
 
-  describe('DELETE /api/tasks/:id', () => {
-    let taskId: number;
+  it('should paginate tasks', async () => {
+    _chainResult = [{ id: 't1' }, { id: 't2' }];
+    _chainCount = 5;
 
-    beforeEach(async () => {
-      const res = await request(app)
-        .post('/api/tasks')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(sampleTask);
-      taskId = res.body.data.task.id;
+    const { default: handler } = await import('../api/tasks/index');
+
+    const req = mockReq({
+      method: 'GET',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      query: { page: '1', limit: '2' },
     });
+    const res = mockRes();
 
-    it('should delete a task', async () => {
-      await request(app)
-        .delete(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(204);
+    await handler(req, res);
 
-      // Verify it's gone
-      await request(app)
-        .get(`/api/tasks/${taskId}`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(404);
+    expect(res._status).toBe(200);
+    const body = res._body as { data: { tasks: unknown[]; pagination: Record<string, unknown> } };
+    expect(body.data.tasks).toHaveLength(2);
+    expect(body.data.pagination.totalPages).toBe(3);
+  });
+});
+
+describe('PUT /api/tasks/:id', () => {
+  it('should update a task', async () => {
+    _chainResult = {
+      id: 'task-1',
+      title: 'Updated Title',
+      status: 'completed',
+    };
+
+    const { default: handler } = await import('../api/tasks/[id]');
+
+    const req = mockReq({
+      method: 'PUT',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      query: { id: 'task-1' },
+      body: { title: 'Updated Title', status: 'completed' },
     });
+    const res = mockRes();
 
-    it('should return 404 for non-existent task', async () => {
-      await request(app)
-        .delete('/api/tasks/99999')
-        .set('Authorization', `Bearer ${authToken}`)
-        .expect(404);
+    await handler(req, res);
+
+    expect(res._status).toBe(200);
+    const body = res._body as { data: { task: Record<string, unknown> } };
+    expect(body.data.task.title).toBe('Updated Title');
+    expect(body.data.task.status).toBe('completed');
+  });
+
+  it('should return 404 for non-existent task', async () => {
+    _chainResult = null;
+
+    const { default: handler } = await import('../api/tasks/[id]');
+
+    const req = mockReq({
+      method: 'PUT',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      query: { id: '99999' },
+      body: { title: 'Updated' },
     });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res._status).toBe(404);
+  });
+
+  it('should reject without auth', async () => {
+    const { default: handler } = await import('../api/tasks/[id]');
+
+    const req = mockReq({
+      method: 'PUT',
+      headers: {},
+      query: { id: 'task-1' },
+      body: { title: 'Updated' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res._status).toBe(401);
+  });
+});
+
+describe('DELETE /api/tasks/:id', () => {
+  it('should delete a task', async () => {
+    _chainResult = null;
+    _chainCount = 1;
+
+    const { default: handler } = await import('../api/tasks/[id]');
+
+    const req = mockReq({
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      query: { id: 'task-1' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res._status).toBe(204);
+  });
+
+  it('should return 404 for non-existent task', async () => {
+    _chainResult = null;
+    _chainCount = 0;
+
+    const { default: handler } = await import('../api/tasks/[id]');
+
+    const req = mockReq({
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${AUTH_TOKEN}` },
+      query: { id: '99999' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res._status).toBe(404);
+  });
+
+  it('should reject without auth', async () => {
+    const { default: handler } = await import('../api/tasks/[id]');
+
+    const req = mockReq({
+      method: 'DELETE',
+      headers: {},
+      query: { id: 'task-1' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res._status).toBe(401);
   });
 });

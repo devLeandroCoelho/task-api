@@ -9,6 +9,9 @@ dist/
 .env.local
 .env.*.local
 
+# Vercel
+.vercel/
+
 # Database
 *.db
 *.db-journal
@@ -34,6 +37,3 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
-
-# Docker
-docker-compose.override.yml
