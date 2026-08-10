@@ -9,13 +9,6 @@
 </div>
 
 <p align="center">
-  <a href="#english">English</a> | <a href="#português">Português</a>
-</p>
-
----
-
-
-<p align="center">
   <a href="#português">Português</a> | <a href="#english">English</a>
 </p>
 
