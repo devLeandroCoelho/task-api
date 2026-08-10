@@ -14,133 +14,10 @@
 
 ---
 
-# <a id="english"></a>English
 
-RESTful API for task management built with Vercel Serverless Functions, Supabase, and TypeScript. Features secure JWT authentication, robust validation, and a comprehensive test suite.
-
-## ✨ Features
-
-- **🔐 JWT Authentication** — Register/login with secure token-based auth via Supabase Auth.
-- **📝 Task CRUD** — Create, read, update, and delete tasks with filtering and pagination.
-- **✅ Zod Validation** — Request body/query validation with descriptive error messages.
-- **🔒 RLS Policies** — Row Level Security ensures users only access their own data.
-- **⚡ Serverless** — Zero cold-start concerns, auto-scaling on Vercel.
-- **🔷 TypeScript** — Strict mode for full type safety.
-- **🧪 Testing** — 25 unit tests with Vitest + Supabase mocking.
-
-## 🛠️ Tech Stack
-
-| Layer      | Technology                  |
-| ---------- | --------------------------- |
-| Runtime    | Vercel Serverless Functions |
-| Language   | TypeScript (strict)         |
-| Database   | Supabase (PostgreSQL + RLS) |
-| Auth       | JWT (jsonwebtoken)          |
-| Validation | Zod                         |
-| Testing    | Vitest                      |
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 20+
-- npm 10+
-- Supabase project (free tier works)
-
-### Installation
-
-```bash
-git clone https://github.com/devLeandroCoelho/task-api.git
-cd task-api
-cp .env.example .env
-# Fill in SUPABASE_URL, SUPABASE_SERVICE_KEY, JWT_SECRET
-npm install
-```
-
-### Database Setup
-
-Run the SQL migration in your Supabase SQL Editor:
-
-```bash
-# Copy the contents of sql/001_initial.sql and run in Supabase Dashboard > SQL Editor
-```
-
-### Development
-
-```bash
-npm run dev
-# Server: http://localhost:3000
-```
-
-### Production
-
-```bash
-vercel --prod
-```
-
-## 🌐 API Endpoints
-
-### Authentication
-
-| Method | Endpoint             | Description       | Body                                    |
-| ------ | -------------------- | ----------------- | --------------------------------------- |
-| POST   | `/api/auth/register` | Register new user | `{ name, email, password }`             |
-| POST   | `/api/auth/login`    | Login             | `{ email, password }`                   |
-| GET    | `/api/auth/me`       | Current user      | — (requires Bearer token)               |
-
-### Tasks
-
-| Method | Endpoint         | Description   | Query Params                              |
-| ------ | ---------------- | ------------- | ----------------------------------------- |
-| GET    | `/api/tasks`     | List tasks    | `status`, `priority`, `page`, `limit`     |
-| POST   | `/api/tasks`     | Create task   | `{ title, description, priority, status, due_date }` |
-| PUT    | `/api/tasks/:id` | Update task   | `{ title, description, priority, status, due_date }` |
-| DELETE | `/api/tasks/:id` | Delete task   | —                                         |
-
-## 🧪 Testing
-
-```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run test:coverage # Coverage report
-```
-
-## 📁 Project Structure
-
-```
-api/
-├── _lib/
-│   ├── supabase.ts      # Supabase client (service_role)
-│   ├── auth.ts          # JWT verification & token signing
-│   └── zod.ts           # Zod validation & response helpers
-├── auth/
-│   ├── register.ts      # POST /api/auth/register
-│   ├── login.ts         # POST /api/auth/login
-│   └── me.ts            # GET /api/auth/me
-└── tasks/
-    ├── index.ts         # GET + POST /api/tasks
-    └── [id].ts          # PUT + DELETE /api/tasks/:id
-
-sql/
-└── 001_initial.sql      # Database migration + RLS policies
-
-tests/
-├── setup.ts             # Test environment variables
-├── auth.test.ts         # Auth endpoint tests (mocked)
-└── tasks.test.ts        # Task endpoint tests (mocked)
-```
-
-## ⚙️ Environment Variables
-
-| Variable              | Description                              |
-| --------------------- | ---------------------------------------- |
-| `SUPABASE_URL`        | Your Supabase project URL                |
-| `SUPABASE_SERVICE_KEY`| Supabase service_role key (bypasses RLS) |
-| `JWT_SECRET`          | JWT signing secret (min 16 chars)        |
-
-## 📜 License
-
-MIT — devLeandroCoelho
+<p align="center">
+  <a href="#português">Português</a> | <a href="#english">English</a>
+</p>
 
 ---
 
@@ -269,5 +146,137 @@ tests/
 | `JWT_SECRET`          | Segredo de assinatura JWT (min 16 chars)     |
 
 ## 📜 Licença
+
+MIT — devLeandroCoelho
+
+---
+
+# <a id="english"></a>English
+
+# <a id="english"></a>English
+
+RESTful API for task management built with Vercel Serverless Functions, Supabase, and TypeScript. Features secure JWT authentication, robust validation, and a comprehensive test suite.
+
+## ✨ Features
+
+- **🔐 JWT Authentication** — Register/login with secure token-based auth via Supabase Auth.
+- **📝 Task CRUD** — Create, read, update, and delete tasks with filtering and pagination.
+- **✅ Zod Validation** — Request body/query validation with descriptive error messages.
+- **🔒 RLS Policies** — Row Level Security ensures users only access their own data.
+- **⚡ Serverless** — Zero cold-start concerns, auto-scaling on Vercel.
+- **🔷 TypeScript** — Strict mode for full type safety.
+- **🧪 Testing** — 25 unit tests with Vitest + Supabase mocking.
+
+## 🛠️ Tech Stack
+
+| Layer      | Technology                  |
+| ---------- | --------------------------- |
+| Runtime    | Vercel Serverless Functions |
+| Language   | TypeScript (strict)         |
+| Database   | Supabase (PostgreSQL + RLS) |
+| Auth       | JWT (jsonwebtoken)          |
+| Validation | Zod                         |
+| Testing    | Vitest                      |
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 20+
+- npm 10+
+- Supabase project (free tier works)
+
+### Installation
+
+```bash
+git clone https://github.com/devLeandroCoelho/task-api.git
+cd task-api
+cp .env.example .env
+# Fill in SUPABASE_URL, SUPABASE_SERVICE_KEY, JWT_SECRET
+npm install
+```
+
+### Database Setup
+
+Run the SQL migration in your Supabase SQL Editor:
+
+```bash
+# Copy the contents of sql/001_initial.sql and run in Supabase Dashboard > SQL Editor
+```
+
+### Development
+
+```bash
+npm run dev
+# Server: http://localhost:3000
+```
+
+### Production
+
+```bash
+vercel --prod
+```
+
+## 🌐 API Endpoints
+
+### Authentication
+
+| Method | Endpoint             | Description       | Body                                    |
+| ------ | -------------------- | ----------------- | --------------------------------------- |
+| POST   | `/api/auth/register` | Register new user | `{ name, email, password }`             |
+| POST   | `/api/auth/login`    | Login             | `{ email, password }`                   |
+| GET    | `/api/auth/me`       | Current user      | — (requires Bearer token)               |
+
+### Tasks
+
+| Method | Endpoint         | Description   | Query Params                              |
+| ------ | ---------------- | ------------- | ----------------------------------------- |
+| GET    | `/api/tasks`     | List tasks    | `status`, `priority`, `page`, `limit`     |
+| POST   | `/api/tasks`     | Create task   | `{ title, description, priority, status, due_date }` |
+| PUT    | `/api/tasks/:id` | Update task   | `{ title, description, priority, status, due_date }` |
+| DELETE | `/api/tasks/:id` | Delete task   | —                                         |
+
+## 🧪 Testing
+
+```bash
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+```
+
+## 📁 Project Structure
+
+```
+api/
+├── _lib/
+│   ├── supabase.ts      # Supabase client (service_role)
+│   ├── auth.ts          # JWT verification & token signing
+│   └── zod.ts           # Zod validation & response helpers
+├── auth/
+│   ├── register.ts      # POST /api/auth/register
+│   ├── login.ts         # POST /api/auth/login
+│   └── me.ts            # GET /api/auth/me
+└── tasks/
+    ├── index.ts         # GET + POST /api/tasks
+    └── [id].ts          # PUT + DELETE /api/tasks/:id
+
+sql/
+└── 001_initial.sql      # Database migration + RLS policies
+
+tests/
+├── setup.ts             # Test environment variables
+├── auth.test.ts         # Auth endpoint tests (mocked)
+└── tasks.test.ts        # Task endpoint tests (mocked)
+```
+
+## ⚙️ Environment Variables
+
+| Variable              | Description                              |
+| --------------------- | ---------------------------------------- |
+| `SUPABASE_URL`        | Your Supabase project URL                |
+| `SUPABASE_SERVICE_KEY`| Supabase service_role key (bypasses RLS) |
+| `JWT_SECRET`          | JWT signing secret (min 16 chars)        |
+
+## 📜 License
 
 MIT — devLeandroCoelho
