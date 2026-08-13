@@ -4,6 +4,7 @@
 [![Vercel](https://img.shields.io/badge/Vercel-Serverless-black.svg)](https://vercel.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Database-green.svg)](https://supabase.com/)
 [![Vitest](https://img.shields.io/badge/Vitest-4.1-yellow.svg)](https://vitest.dev/)
+[![CI](https://github.com/devLeandroCoelho/task-api/actions/workflows/ci.yml/badge.svg)](https://github.com/devLeandroCoelho/task-api/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 </div>
