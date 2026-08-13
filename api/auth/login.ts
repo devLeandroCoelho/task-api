@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabase } from '../_lib/supabase';
 import { signToken } from '../_lib/auth';
 import { validateRequest, sendError, sendSuccess } from '../_lib/zod';
+import { rateLimit } from '../_lib/rateLimit';
 
 const loginSchema = z.object({
   email: z
@@ -26,6 +27,9 @@ export default async function handler(
     sendError(res, 405, 'Method not allowed');
     return;
   }
+
+  // Protect against brute-force: 10 attempts per 15 min per IP
+  if (!rateLimit(req, res)) return;
 
   const input = validateRequest<LoginInput>(req, res, loginSchema, 'body');
   if (!input) return;
