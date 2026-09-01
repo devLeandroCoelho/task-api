@@ -58,6 +58,13 @@ function resetAt(bucket: Bucket): number {
 
 export interface RateLimitOptions {
   max?: number;
+  /**
+   * When false, the URL query string is ignored when building the bucket key.
+   * Use this for routes where clients legitimately vary query params (e.g.
+   * pagination/filters) — otherwise each distinct URL gets its own bucket and
+   * the limit can be trivially bypassed.
+   */
+  includeQuery?: boolean;
 }
 
 /**
@@ -70,7 +77,9 @@ export function rateLimit(
   options: RateLimitOptions = {}
 ): boolean {
   const ip = getClientIp(req);
-  const route = `${req.method ?? 'GET'} ${req.url ?? '/'}`;
+  const rawUrl = req.url ?? '/';
+  const url = options.includeQuery === false ? rawUrl.split('?')[0] : rawUrl;
+  const route = `${req.method ?? 'GET'} ${url}`;
   const key = keyFor(ip, route);
   const max = options.max ?? MAX_AUTH_ATTEMPTS;
 
