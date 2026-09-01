@@ -84,4 +84,28 @@ describe('rateLimit', () => {
     expect(rateLimit(req, res, { max: 3 })).toBe(true);
     expect(rateLimit(req, res, { max: 3 })).toBe(false);
   });
+
+  it('shares a bucket across query strings when includeQuery is false', async () => {
+    const { rateLimit } = await loadRateLimit();
+    const { res } = makeRes();
+
+    const page1 = makeReq('203.0.113.10', '/api/tasks?page=1&limit=10');
+    const page2 = makeReq('203.0.113.10', '/api/tasks?page=2&limit=10');
+
+    expect(rateLimit(page1, res, { max: 2, includeQuery: false })).toBe(true);
+    expect(rateLimit(page2, res, { max: 2, includeQuery: false })).toBe(true);
+    expect(rateLimit(page1, res, { max: 2, includeQuery: false })).toBe(false);
+  });
+
+  it('keeps query strings in the bucket key by default', async () => {
+    const { rateLimit } = await loadRateLimit();
+    const { res } = makeRes();
+
+    const page1 = makeReq('203.0.113.10', '/api/tasks?page=1');
+    const page2 = makeReq('203.0.113.10', '/api/tasks?page=2');
+
+    expect(rateLimit(page1, res, { max: 1 })).toBe(true);
+    expect(rateLimit(page2, res, { max: 1 })).toBe(true); // distinct bucket
+    expect(rateLimit(page1, res, { max: 1 })).toBe(false); // first bucket now limited
+  });
 });

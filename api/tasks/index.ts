@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabase } from '../_lib/supabase';
 import { requireAuth } from '../_lib/auth';
 import { validateRequest, sendError, sendSuccess } from '../_lib/zod';
+import { rateLimit } from '../_lib/rateLimit';
 
 const createTaskSchema = z.object({
   title: z
@@ -47,6 +48,10 @@ export default async function handler(
 
   switch (req.method) {
     case 'GET':
+      // Protect against scraping / resource exhaustion: 120 list calls per
+      // 15 min per IP. Query string is ignored so pagination/filters don't
+      // create per-URL buckets that bypass the limit.
+      if (!rateLimit(req, res, { max: 120, includeQuery: false })) return;
       return handleList(req, res, authPayload.userId);
     case 'POST':
       return handleCreate(req, res, authPayload.userId);

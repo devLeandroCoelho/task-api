@@ -198,6 +198,31 @@ describe('GET /api/tasks', () => {
     expect(body.data.tasks).toHaveLength(2);
     expect(body.data.pagination.totalPages).toBe(3);
   });
+
+  it('should return 429 after the GET rate limit is exceeded', async () => {
+    _chainResult = [];
+    _chainCount = 0;
+
+    const { default: handler } = await import('../api/tasks/index');
+
+    // Unique IP so this test does not pollute the shared 'local' bucket.
+    const req = mockReq({
+      method: 'GET',
+      headers: {
+        authorization: `Bearer ${AUTH_TOKEN}`,
+        'x-forwarded-for': '198.51.100.77',
+      },
+    });
+    const res = mockRes();
+
+    // Limit is 120 per 15-min window; the 121st request is rejected with 429.
+    for (let i = 0; i < 120; i += 1) {
+      await handler(req, res);
+      expect(res._status).toBe(200);
+    }
+    await handler(req, res);
+    expect(res._status).toBe(429);
+  });
 });
 
 describe('PUT /api/tasks/:id', () => {
